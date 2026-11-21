@@ -1,0 +1,38 @@
+{
+  "name": "ai-video-studio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server/index.ts & vite --config web/vite.config.ts",
+    "build": "tsc --noEmit && vite build --config web/vite.config.ts",
+    "test": "vitest run",
+    "e2e:pipeline": "tsx scripts/e2e-pipeline.ts",
+    "smoke:real": "tsx scripts/smoke-real.ts",
+    "e2e:ui": "rm -rf .e2e-out/ui-data && playwright test -c e2e/playwright.config.ts"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "@napi-rs/canvas": "^1.2.0",
+    "@xyflow/react": "^13.0.2",
+    "hono": "^4.13.19",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

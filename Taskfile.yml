@@ -1,0 +1,67 @@
+version: "3"
+
+tasks:
+  default:
+    desc: 사용 가능한 작업 목록
+    silent: true
+    cmds:
+      - task --list
+
+  install:
+    desc: 의존성 설치
+    cmds:
+      - pnpm install
+
+  dev:
+    desc: API와 웹 개발 서버 실행 (실제 구독 CLI 사용)
+    cmds:
+      - pnpm dev
+
+  dev:mock:
+    desc: 구독을 쓰지 않는 mock 모드로 개발 서버 실행
+    env:
+      PROVIDER_MODE: mock
+    cmds:
+      - pnpm dev
+
+  build:
+    desc: 타입체크와 웹 번들
+    cmds:
+      - pnpm build
+
+  test:
+    desc: 단위·통합 테스트 (ffmpeg 실제 실행)
+    cmds:
+      - pnpm test
+
+  e2e:pipeline:
+    desc: mock 모드 헤드리스 전체 파이프라인 → .e2e-out/final.mp4
+    env:
+      PROVIDER_MODE: mock
+    cmds:
+      - pnpm e2e:pipeline
+
+  e2e:ui:
+    desc: mock 모드 브라우저 E2E (Playwright)
+    env:
+      PROVIDER_MODE: mock
+    cmds:
+      - pnpm e2e:ui
+
+  smoke:real:
+    desc: 실제 claude 기획 1회 + codex 이미지 1장 (구독 사용량 소모)
+    cmds:
+      - pnpm smoke:real
+
+  check:
+    desc: 구독을 쓰지 않는 검사 전체 (빌드 · 테스트 · 파이프라인 · 브라우저 E2E)
+    cmds:
+      - task: build
+      - task: test
+      - task: e2e:pipeline
+      - task: e2e:ui
+
+  clean:
+    desc: 빌드·검증 산출물 삭제 (data/의 프로젝트 데이터는 건드리지 않음)
+    cmds:
+      - rm -rf dist .e2e-out .smoke-out test-results playwright-report

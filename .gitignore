@@ -1,0 +1,19 @@
+# forge 루프 디렉터리 — 휘발 상태는 제외, 영속 문서만 추적
+.forge/*
+!.forge/CONTEXT.md
+!.forge/adr/
+!.forge/retro/
+!.forge/followups.md
+!.forge/codebase/
+!.forge/rules/
+!.forge/config.json
+!.forge/branch/
+
+node_modules/
+dist/
+data/
+.e2e-out/
+.smoke-out/
+test-results/
+playwright-report/
+.DS_Store
