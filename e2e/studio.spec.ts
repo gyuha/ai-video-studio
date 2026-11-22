@@ -75,3 +75,35 @@ test("에이전트에 설명하면 노드 그래프가 생기고, 전체 실행�
   expect(duration).toBeGreaterThan(8.5);
   expect(duration).toBeLessThan(9.5);
 });
+
+test("노드 모델을 바꾸면 그 노드와 뒤 노드가 대기 상태로 돌아가고 앞 노드는 완료로 남는다", async ({ page }) => {
+  // 앞 테스트가 끝낸 완료 상태의 그래프를 이어서 쓴다 (serial)
+  await page.goto("/");
+  await expect(page.locator('[data-testid="node"][data-status="done"]')).toHaveCount(9);
+
+  const video = page.locator('[data-testid="node"][data-type="video"]').first();
+  await video.getByTestId("model").selectOption("drawthings-minimax-h3");
+
+  await expect(video.getByTestId("status")).toHaveText("대기");
+  await expect(page.locator('[data-testid="node"][data-type="edit"] [data-testid="status"]')).toHaveText("대기");
+  await expect(page.locator('[data-testid="node"][data-type="motion"] [data-testid="status"]')).toHaveText("대기");
+  await expect(page.locator('[data-testid="node"][data-type="image"] [data-testid="status"]').first()).toHaveText("완료");
+
+  // 새로고침해도 모델 선택과 대기 상태가 남는다
+  await page.reload();
+  const again = page.locator('[data-testid="node"][data-type="video"]').first();
+  await expect(again.getByTestId("model")).toHaveValue("drawthings-minimax-h3");
+  await expect(again.getByTestId("status")).toHaveText("대기");
+});
+
+test("새 워크플로우를 시작하면 캔버스가 비고, 기존 것은 보관된다", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByTestId("node")).toHaveCount(9);
+
+  page.once("dialog", (d) => d.accept());
+  await page.getByTestId("new-workflow").click();
+
+  await expect(page.getByTestId("node")).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByTestId("node")).toHaveCount(0);
+});

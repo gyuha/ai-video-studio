@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { Hono } from "hono";
-import { GraphSchema } from "../shared/schema.ts";
+import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, GraphSchema, ImageModelSchema, VideoModelSchema } from "../shared/schema.ts";
 import { BusyError, type Service } from "./service.ts";
 
 const MIME: Record<string, string> = { ".mp4": "video/mp4", ".png": "image/png" };
@@ -21,9 +21,15 @@ export function createApp(service: Service) {
   });
 
   app.post("/api/agent", async (c) => {
-    const { prompt } = await c.req.json<{ prompt?: string }>();
+    const { prompt, imageModel, videoModel } = await c.req.json<{ prompt?: string; imageModel?: string; videoModel?: string }>();
     if (!prompt?.trim()) return c.json({ error: "만들고 싶은 영상을 설명해 주세요" }, 400);
-    await service.agent(prompt.trim());
+    const models = {
+      image: imageModel ?? DEFAULT_IMAGE_MODEL,
+      video: videoModel ?? DEFAULT_VIDEO_MODEL,
+    };
+    const checked = ImageModelSchema.safeParse(models.image).success && VideoModelSchema.safeParse(models.video).success;
+    if (!checked) return c.json({ error: "지원하지 않는 모델입니다" }, 400);
+    await service.agent(prompt.trim(), models);
     return c.json(service.state());
   });
 
@@ -38,6 +44,12 @@ export function createApp(service: Service) {
     if (service.state().running) throw new BusyError();
     started(service.runNode(c.req.param("id")));
     return c.json(service.state(), 202);
+  });
+
+  // 현재 워크플로우를 보관하고 빈 캔버스로 시작한다. 실행 중이면 409.
+  app.post("/api/workflow/new", (c) => {
+    service.newWorkflow();
+    return c.json(service.state());
   });
 
   app.get("/files/:name", async (c) => {

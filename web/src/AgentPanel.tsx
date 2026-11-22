@@ -1,15 +1,22 @@
 import { useState } from "react";
+import { CONNECTED_OPTIONS } from "../../shared/schema.ts";
 
 export interface Message {
   role: "user" | "agent" | "error";
   text: string;
 }
 
-export function AgentPanel({ messages, busy, onSend }: { messages: Message[]; busy: boolean; onSend: (prompt: string) => void }) {
+export interface ModelPick {
+  image: string;
+  video: string;
+}
+
+export function AgentPanel({ messages, busy, onSend }: { messages: Message[]; busy: boolean; onSend: (prompt: string, models: ModelPick) => void }) {
   const [text, setText] = useState("");
+  const [models, setModels] = useState<ModelPick>({ image: CONNECTED_OPTIONS.image[0].id, video: CONNECTED_OPTIONS.video[0].id });
   const send = () => {
     if (busy || !text.trim()) return;
-    onSend(text.trim());
+    onSend(text.trim(), models);
     setText("");
   };
   return (
@@ -21,6 +28,20 @@ export function AgentPanel({ messages, busy, onSend }: { messages: Message[]; bu
           <p key={i} className={`msg msg-${m.role}`} data-testid={`msg-${m.role}`}>{m.text}</p>
         ))}
         {busy && <p className="msg msg-agent" data-testid="agent-busy">기획하는 중…</p>}
+      </div>
+      <div className="models">
+        <label>
+          이미지 모델
+          <select data-testid="agent-image-model" disabled={busy} value={models.image} onChange={(e) => setModels({ ...models, image: e.target.value })}>
+            {CONNECTED_OPTIONS.image.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </label>
+        <label>
+          영상 모델
+          <select data-testid="agent-video-model" disabled={busy} value={models.video} onChange={(e) => setModels({ ...models, video: e.target.value })}>
+            {CONNECTED_OPTIONS.video.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </label>
       </div>
       <div className="composer">
         <textarea

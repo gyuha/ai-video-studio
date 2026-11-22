@@ -16,6 +16,11 @@ const outDir = () => mkdtemp(join(tmpdir(), "avs-"));
 const mockProviders: Providers = {
   plan: async () => MOCK_PLAN,
   image: (imagePrompt, outPath) => writeFile(outPath, `mock image: ${imagePrompt}`),
+  drawthingsImage: (_file, imagePrompt, outPath) => writeFile(outPath, `mock image: ${imagePrompt}`),
+  drawthingsVideo: async (_file, _prompt, _sec, outPath) => {
+    await writeFile(outPath, "mock video");
+    return undefined;
+  },
   video: (imagePath, _durationSec, outPath) => copyFile(imagePath, outPath),
   edit: (clipPaths, outPath) => writeFile(outPath, clipPaths.join("\n")),
   motion: (videoPath, _captions, outPath) => copyFile(videoPath, outPath),

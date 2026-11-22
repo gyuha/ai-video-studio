@@ -9,6 +9,7 @@
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
     "types": ["node", "vite/client"]
   },
   "include": ["server", "shared", "web", "tests", "scripts", "e2e", "vitest.config.ts"]

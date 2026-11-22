@@ -1,0 +1,10 @@
+{
+  "image": [
+    { "id": "codex", "label": "Codex 이미지 (ChatGPT 구독)", "connected": true, "engine": "codex", "file": "", "costLabel": "구독 · 0원", "unit": "Codex 이미지 1장" },
+    { "id": "drawthings-image", "label": "Draw Things 이미지 (로컬)", "connected": true, "engine": "drawthings", "file": "qwen_image_2.1_turbo_q6p.ckpt", "costLabel": "로컬 · 0원", "unit": "Draw Things 이미지 1장" }
+  ],
+  "video": [
+    { "id": "ffmpeg-zoom", "label": "ffmpeg 줌 (로컬)", "connected": true, "engine": "ffmpeg", "file": "", "costLabel": "로컬 · 0원", "unit": "ffmpeg 모션 클립" },
+    { "id": "drawthings-minimax-h3", "label": "Draw Things MiniMax H3 4-bit (로컬)", "connected": true, "engine": "drawthings", "file": "minimax_h3_fl2va_i4x.ckpt", "costLabel": "로컬 · 0원", "unit": "Draw Things 영상 1개" }
+  ]
+}

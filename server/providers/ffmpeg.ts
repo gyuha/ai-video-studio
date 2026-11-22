@@ -9,7 +9,7 @@ export const WIDTH = 1280;
 export const HEIGHT = 720;
 export const FPS = 30;
 
-async function ffmpeg(args: string[]): Promise<void> {
+export async function ffmpeg(args: string[]): Promise<void> {
   try {
     await exec("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", ...args]);
   } catch (err) {

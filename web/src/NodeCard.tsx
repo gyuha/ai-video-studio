@@ -1,7 +1,7 @@
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { createContext, useContext, useMemo } from "react";
 import { estimateCost } from "../../shared/cost.ts";
-import type { GraphNode, NodeType } from "../../shared/schema.ts";
+import { CONNECTED_OPTIONS, findModel, type GraphNode, type NodeType } from "../../shared/schema.ts";
 import { fileUrl } from "./api.ts";
 
 export type CardNode = Node<{ node: GraphNode }, "card">;
@@ -21,14 +21,35 @@ export interface Studio {
   locked: boolean;
   update: (id: string, data: GraphNode["data"]) => void;
   commit: () => void;
+  /** 모델을 바꾼 뒤 저장하고 서버가 되돌린 상태를 다시 받는다. */
+  commitModel: () => void;
   run: (id: string) => void;
   remove: (id: string) => void;
   agent: (prompt: string) => void;
 }
 export const StudioContext = createContext<Studio>(null!);
 
+/**
+ * 모델 선택. 실행 가능한 모델만 고를 수 있다. 노드에 이미 연결 전 모델이 저장돼 있으면,
+ * 목록을 속이지 않도록 그 항목만 비활성으로 보여 준다. 바꾸면 서버가 뒤 노드를 대기 상태로 되돌리므로 즉시 저장한다.
+ */
+function ModelSelect({ kind, value, onChange }: { kind: "image" | "video"; value: string; onChange: (model: string) => void }) {
+  const { locked } = useContext(StudioContext);
+  const current = findModel(value);
+  const options = current && !current.connected ? [...CONNECTED_OPTIONS[kind], current] : CONNECTED_OPTIONS[kind];
+  return (
+    <label className="inline">
+      모델
+      <select className="nodrag" data-testid="model" disabled={locked} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((m) => <option key={m.id} value={m.id} disabled={!m.connected}>{m.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
 function Fields({ node }: { node: GraphNode }) {
-  const { locked, update, commit } = useContext(StudioContext);
+  const { locked, update, commit, commitModel } = useContext(StudioContext);
+  const changeModel = (model: string) => { update(node.id, { ...node.data, model } as GraphNode["data"]); commitModel(); };
   switch (node.type) {
     case "plan":
       return (
@@ -39,20 +60,26 @@ function Fields({ node }: { node: GraphNode }) {
       );
     case "image":
       return (
-        <textarea
-          className="nodrag" data-testid="field" rows={4} placeholder="이미지 프롬프트" disabled={locked}
-          value={node.data.imagePrompt} onChange={(e) => update(node.id, { imagePrompt: e.target.value })} onBlur={commit}
-        />
+        <>
+          <textarea
+            className="nodrag" data-testid="field" rows={4} placeholder="이미지 프롬프트" disabled={locked}
+            value={node.data.imagePrompt} onChange={(e) => update(node.id, { ...node.data, imagePrompt: e.target.value })} onBlur={commit}
+          />
+          <ModelSelect kind="image" value={node.data.model} onChange={changeModel} />
+        </>
       );
     case "video":
       return (
-        <label className="inline">
-          길이(초)
-          <input
-            className="nodrag" data-testid="field" type="number" min={1} max={30} step={0.5} disabled={locked}
-            value={node.data.durationSec} onChange={(e) => update(node.id, { durationSec: Math.min(30, Math.max(1, Number(e.target.value) || 1)) })} onBlur={commit}
-          />
-        </label>
+        <>
+          <label className="inline">
+            길이(초)
+            <input
+              className="nodrag" data-testid="field" type="number" min={1} max={30} step={0.5} disabled={locked}
+              value={node.data.durationSec} onChange={(e) => update(node.id, { ...node.data, durationSec: Math.min(30, Math.max(1, Number(e.target.value) || 1)) })} onBlur={commit}
+            />
+          </label>
+          <ModelSelect kind="video" value={node.data.model} onChange={changeModel} />
+        </>
       );
     case "edit":
       return <p className="hint">연결된 영상 클립을 순서대로 이어 붙입니다.</p>;
@@ -111,6 +138,7 @@ export function NodeCard({ data }: NodeProps<CardNode>) {
       <Fields node={node} />
       {node.error && <p className="error" data-testid="error">{node.error}</p>}
       <Preview node={node} />
+      {node.output?.note && <p className="hint" data-testid="note">{node.output.note}</p>}
       <footer>
         <span className="cost" data-testid="cost" title={cost.unit}>{cost.label} · {cost.unit}</span>
         {node.type === "plan" ? (

@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { Graph, GraphNode } from "../../shared/schema.ts";
+import { findModel, type Graph, type GraphNode } from "../../shared/schema.ts";
 import type { Providers } from "../providers/types.ts";
 
 export interface RunOptions {
@@ -44,18 +44,33 @@ function inputPath(ups: GraphNode[], types: GraphNode["type"][], nodeId: string)
   return path;
 }
 
+// 드로우띵은 2부에서 연결한다. 그 전까지 실행을 시도하면 노드를 오류로 멈춘다 (자동 대체 없음).
+const unconnected = (model: string) => new Error(`${model}: 아직 연결되지 않은 모델입니다 (드로우띵은 2부에서 연결)`);
+
 async function execute(graph: Graph, node: GraphNode, providers: Providers, outDir: string): Promise<GraphNode["output"]> {
   const ups = upstream(graph, node.id);
   switch (node.type) {
     case "plan":
       return { plan: await providers.plan(node.data.prompt) };
     case "image": {
+      const entry = findModel(node.data.model);
+      if (!entry?.connected) throw unconnected(node.data.model);
       const path = join(outDir, `${node.id}.png`);
-      await providers.image(node.data.imagePrompt, path);
+      if (entry.engine === "drawthings") await providers.drawthingsImage(entry.file, node.data.imagePrompt, path);
+      else await providers.image(node.data.imagePrompt, path);
       return { path };
     }
     case "video": {
+      const entry = findModel(node.data.model);
+      if (!entry?.connected) throw unconnected(node.data.model);
       const path = join(outDir, `${node.id}.mp4`);
+      if (entry.engine === "drawthings") {
+        // 드로우띵 영상은 장면 이미지 노드의 프롬프트로 텍스트→영상을 만든다.
+        const scene = ups.find((n) => n.type === "image");
+        if (!scene || scene.type !== "image") throw new Error(`${node.id}: 장면 이미지 노드가 연결되어 있지 않습니다`);
+        const note = await providers.drawthingsVideo(entry.file, scene.data.imagePrompt, node.data.durationSec, path);
+        return { path, note };
+      }
       await providers.video(inputPath(ups, ["image"], node.id), node.data.durationSec, path);
       return { path };
     }

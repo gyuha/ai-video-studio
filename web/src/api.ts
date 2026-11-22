@@ -25,8 +25,10 @@ async function call(path: string, method = "GET", body?: unknown): Promise<State
 export const api = {
   state: () => call("/api/graph"),
   save: (graph: Graph) => call("/api/graph", "PUT", graph),
-  agent: (prompt: string) => call("/api/agent", "POST", { prompt }),
+  agent: (prompt: string, models: { image: string; video: string }) =>
+    call("/api/agent", "POST", { prompt, imageModel: models.image, videoModel: models.video }),
   runAll: () => call("/api/run", "POST"),
+  newWorkflow: () => call("/api/workflow/new", "POST"),
   runNode: (id: string) => call(`/api/run/${encodeURIComponent(id)}`, "POST"),
 };
 

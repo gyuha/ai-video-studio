@@ -1,4 +1,4 @@
-import type { Graph, NodeType } from "./schema.ts";
+import { findModel, type Graph, type NodeType } from "./schema.ts";
 
 export interface Cost {
   label: string;
@@ -15,7 +15,11 @@ const COSTS: Record<NodeType, Cost> = {
   motion: { label: "로컬 · 0원", krw: 0, unit: "ffmpeg 자막 오버레이" },
 };
 
-export function estimateCost(node: { type: NodeType }): Cost {
+/** 이미지·영상 노드는 실제 엔진(모델)의 비용·단위를 보여 준다. 그 밖의 노드는 종류별 기본값. */
+export function estimateCost(node: { type: NodeType; data?: object }): Cost {
+  const picked = (node.data as { model?: unknown } | undefined)?.model;
+  const model = (node.type === "image" || node.type === "video") && typeof picked === "string" ? findModel(picked) : undefined;
+  if (model) return { label: model.costLabel, krw: 0, unit: model.unit };
   return COSTS[node.type];
 }
 

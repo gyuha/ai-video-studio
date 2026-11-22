@@ -2,8 +2,8 @@ import { addEdge, Background, Controls, ReactFlow, type Edge, type OnConnect, ty
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { estimateGraphCost } from "../../shared/cost.ts";
-import { NODE_TYPES, type Graph, type GraphNode, type NodeType } from "../../shared/schema.ts";
-import { AgentPanel, type Message } from "./AgentPanel.tsx";
+import { DEFAULT_IMAGE_MODEL, DEFAULT_VIDEO_MODEL, NODE_TYPES, type Graph, type GraphNode, type NodeType } from "../../shared/schema.ts";
+import { AgentPanel, type Message, type ModelPick } from "./AgentPanel.tsx";
 import { api, ApiError, type State } from "./api.ts";
 import { NodeCard, StudioContext, TYPE_META, type CardNode, type Studio } from "./NodeCard.tsx";
 import "./style.css";
@@ -12,8 +12,8 @@ const nodeTypes = { card: NodeCard };
 
 const DEFAULT_DATA: { [T in NodeType]: Extract<GraphNode, { type: T }>["data"] } = {
   plan: { prompt: "" },
-  image: { imagePrompt: "" },
-  video: { durationSec: 3 },
+  image: { imagePrompt: "", model: DEFAULT_IMAGE_MODEL },
+  video: { durationSec: 3, model: DEFAULT_VIDEO_MODEL },
   edit: {},
   motion: { captions: [] },
 };
@@ -54,9 +54,19 @@ export function App() {
   useEffect(() => {
     if (dirty === 0) return;
     // 실행 직전에 같은 내용을 이미 저장하므로, 실행 중이라 거절된(409) 저장은 무시해도 잃는 것이 없다.
+    // 실행 직전에 같은 내용을 이미 저장하므로, 실행 중이라 거절된(409) 저장은 무시해도 잃는 것이 없다.
     api.save(toGraph(nodes, edges)).catch((err) => { if (!(err instanceof ApiError && err.status === 409)) fail(err); });
   }, [dirty]);
   const commit = useCallback(() => setDirty((n) => n + 1), []);
+
+  // 모델을 바꾸면 서버가 뒤 노드를 대기 상태로 되돌리므로, 그 응답만 화면에 다시 반영한다.
+  // 일반 저장 응답은 반영하지 않는다. 입력 도중의 응답이 최신 입력을 덮어쓰기 때문이다.
+  const [modelDirty, setModelDirty] = useState(0);
+  useEffect(() => {
+    if (modelDirty === 0) return;
+    api.save(toGraph(nodes, edges)).then(load).catch((err) => { if (!(err instanceof ApiError && err.status === 409)) fail(err); });
+  }, [modelDirty]);
+  const commitModel = useCallback(() => setModelDirty((n) => n + 1), []);
 
   const onNodesChange: OnNodesChange<CardNode> = useCallback((changes) => setNodes((prev) => changes.applyTo(prev)), []);
   const onEdgesChange: OnEdgesChange = useCallback((changes) => setEdges((prev) => changes.applyTo(prev)), []);
@@ -75,12 +85,12 @@ export function App() {
     }
   };
 
-  const agent = async (prompt: string) => {
+  const agent = async (prompt: string, models: ModelPick = { image: DEFAULT_IMAGE_MODEL, video: DEFAULT_VIDEO_MODEL }) => {
     setError("");
     setAgentBusy(true);
     setMessages((prev) => [...prev, { role: "user", text: prompt }]);
     try {
-      const state = await api.agent(prompt);
+      const state = await api.agent(prompt, models);
       load(state);
       setLayout((n) => n + 1);
       const plan = state.graph.nodes.find((n) => n.type === "plan")?.output?.plan;
@@ -101,7 +111,8 @@ export function App() {
   const studio: Studio = {
     locked,
     commit,
-    agent,
+    commitModel,
+    agent: (prompt) => agent(prompt),
     update: (id, data) => setNodes((prev) => prev.map((n) => (n.id === id ? { ...n, data: { node: { ...n.data.node, data } as GraphNode } } : n))),
     run: (id) => start(() => api.runNode(id)),
     remove: (id) => {
@@ -126,6 +137,15 @@ export function App() {
               </button>
             ))}
           </nav>
+          <button
+            data-testid="new-workflow" disabled={locked}
+            onClick={() => {
+              // 현재 편집 내용을 먼저 저장한 뒤 보관한다(start가 저장을 먼저 한다). 기존 것은 지우지 않고 옮긴다.
+              if (window.confirm("현재 워크플로우를 보관하고 빈 캔버스로 시작합니다. 계속할까요?")) start(api.newWorkflow);
+            }}
+          >
+            새 워크플로우
+          </button>
           <span className="total" data-testid="total-cost" title={Object.entries(cost.units).map(([unit, n]) => `${unit} × ${n}`).join("\n")}>
             예상 비용 {cost.krw.toLocaleString()}원 · 노드 {nodes.length}개
           </span>
@@ -145,7 +165,7 @@ export function App() {
             <Controls />
           </ReactFlow>
         </main>
-        <AgentPanel messages={messages} busy={agentBusy} onSend={agent} />
+        <AgentPanel messages={messages} busy={agentBusy} onSend={(prompt, models) => agent(prompt, models)} />
       </div>
     </StudioContext.Provider>
   );
